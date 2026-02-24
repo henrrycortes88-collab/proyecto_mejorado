@@ -1,0 +1,51 @@
+services:
+  # Servicio del sistema de login
+  login-system:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: sistema-login-corporativo
+    ports:
+      - "8080:8080" # Puerto externo:interno
+    restart: unless-stopped
+    depends_on:
+      - db
+    networks:
+      - login-network
+    environment:
+      - TZ=America/Mexico_City
+      - SQLALCHEMY_DATABASE_URI=postgresql://usuario:password@db:5432/login_db
+    volumes:
+      - .:/app
+    labels:
+      - "app.name=Sistema Login Corporativo"
+      - "app.version=2.0"
+      - "app.description=Portal de acceso multi-usuario"
+
+  # Servicio de Base de Datos PostgreSQL
+  db:
+    image: postgres:15
+    container_name: login-db
+    environment:
+      POSTGRES_USER: usuario
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: login_db
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - login-network
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U usuario -d login_db" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+networks:
+  login-network:
+    driver: bridge
+    name: login-network
+
+volumes:
+  postgres_data:
+
+

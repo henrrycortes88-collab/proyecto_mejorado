@@ -1,0 +1,856 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Empleado Dashboard - Gestión de Tareas</title>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;600;700&family=Archivo:wght@400;600;700&display=swap"
+        rel="stylesheet">
+    <style>
+        :root {
+            --bg-primary: #f8f9fb;
+            --bg-secondary: #ffffff;
+            --bg-accent: #f0f4f8;
+            --accent-primary: #4f46e5;
+            --accent-secondary: #06b6d4;
+            --accent-success: #10b981;
+            --accent-warning: #f59e0b;
+            --accent-danger: #ef4444;
+            --text-primary: #1e293b;
+            --text-secondary: #64748b;
+            --border-color: #e2e8f0;
+            --shadow: rgba(0, 0, 0, 0.08);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Sora', sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 24px;
+        }
+
+        .layout {
+            display: grid;
+            grid-template-columns: 280px 1fr;
+            gap: 24px;
+            min-height: 100vh;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            background: var(--bg-secondary);
+            border-radius: 20px;
+            padding: 24px;
+            box-shadow: 0 4px 20px var(--shadow);
+            height: fit-content;
+            position: sticky;
+            top: 24px;
+        }
+
+        .company-logo {
+            font-family: 'Archivo', sans-serif;
+            font-size: 24px;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 32px;
+        }
+
+        .user-profile {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 16px;
+            background: var(--bg-accent);
+            border-radius: 12px;
+            margin-bottom: 24px;
+        }
+
+        .user-avatar {
+            width: 48px;
+            height: 48px;
+            background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            font-weight: 700;
+            color: white;
+        }
+
+        .user-name {
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        .user-role {
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+
+        .nav-menu {
+            list-style: none;
+        }
+
+        .nav-item {
+            margin-bottom: 8px;
+        }
+
+        .nav-link {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 16px;
+            border-radius: 10px;
+            text-decoration: none;
+            color: var(--text-secondary);
+            font-weight: 500;
+            font-size: 14px;
+            transition: all 0.3s;
+            cursor: pointer;
+        }
+
+        .nav-link:hover,
+        .nav-link.active {
+            background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+            color: white;
+            box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3);
+        }
+
+        .logout-link {
+            margin-top: 24px;
+            padding-top: 24px;
+            border-top: 1px solid var(--border-color);
+        }
+
+        /* Main Content */
+        .main-content {
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+        }
+
+        .welcome-banner {
+            background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+            border-radius: 20px;
+            padding: 32px;
+            color: white;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .welcome-banner::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            right: -10%;
+            width: 300px;
+            height: 300px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 50%;
+        }
+
+        .welcome-title {
+            font-family: 'Archivo', sans-serif;
+            font-size: 28px;
+            font-weight: 700;
+            margin-bottom: 8px;
+            position: relative;
+        }
+
+        .welcome-subtitle {
+            font-size: 14px;
+            opacity: 0.9;
+            position: relative;
+        }
+
+        /* Stats Cards */
+        .quick-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+        }
+
+        .stat-card {
+            background: var(--bg-secondary);
+            border-radius: 16px;
+            padding: 24px;
+            box-shadow: 0 4px 20px var(--shadow);
+            transition: all 0.3s;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 8px 30px var(--shadow);
+        }
+
+        .stat-label {
+            font-size: 13px;
+            color: var(--text-secondary);
+            margin-bottom: 8px;
+        }
+
+        .stat-value {
+            font-family: 'Archivo', sans-serif;
+            font-size: 32px;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        /* Section */
+        .section {
+            background: var(--bg-secondary);
+            border-radius: 20px;
+            padding: 24px;
+            box-shadow: 0 4px 20px var(--shadow);
+        }
+
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .section-title {
+            font-family: 'Archivo', sans-serif;
+            font-size: 20px;
+            font-weight: 700;
+        }
+
+        .view-all {
+            font-size: 14px;
+            color: var(--accent-primary);
+            text-decoration: none;
+            font-weight: 600;
+        }
+
+        .view-all:hover {
+            opacity: 0.7;
+        }
+
+        /* Filter Tabs */
+        .filter-tabs {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .filter-tab {
+            padding: 8px 16px;
+            background: var(--bg-accent);
+            border: 1px solid var(--border-color);
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .filter-tab:hover,
+        .filter-tab.active {
+            background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+            color: white;
+            border-color: transparent;
+        }
+
+        /* Task Item */
+        .tasks-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .task-item {
+            display: flex;
+            gap: 16px;
+            padding: 16px;
+            background: var(--bg-accent);
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.3s;
+            border: 1px solid transparent;
+        }
+
+        .task-item:hover {
+            background: white;
+            border-color: var(--accent-primary);
+            transform: translateX(4px);
+        }
+
+        .task-checkbox {
+            width: 20px;
+            height: 20px;
+            border: 2px solid var(--border-color);
+            border-radius: 6px;
+            cursor: pointer;
+            flex-shrink: 0;
+            transition: all 0.3s;
+        }
+
+        .task-checkbox:hover {
+            border-color: var(--accent-primary);
+        }
+
+        .task-checkbox.completed {
+            background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+            border-color: var(--accent-primary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+        }
+
+        .task-content {
+            flex: 1;
+        }
+
+        .task-title {
+            font-weight: 600;
+            font-size: 14px;
+            margin-bottom: 6px;
+        }
+
+        .task-meta {
+            display: flex;
+            gap: 12px;
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+
+        .task-priority {
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+
+        .priority-high {
+            background: rgba(239, 68, 68, 0.1);
+            color: var(--accent-danger);
+        }
+
+        .priority-media {
+            background: rgba(245, 158, 11, 0.1);
+            color: var(--accent-warning);
+        }
+
+        .priority-low {
+            background: rgba(16, 185, 129, 0.1);
+            color: var(--accent-success);
+        }
+
+        /* Projects Grid */
+        .projects-grid {
+            display: grid;
+            gap: 16px;
+        }
+
+        .project-card {
+            padding: 20px;
+            background: var(--bg-accent);
+            border-radius: 12px;
+            border: 1px solid transparent;
+            transition: all 0.3s;
+        }
+
+        .project-card:hover {
+            background: white;
+            border-color: var(--accent-primary);
+        }
+
+        .project-name {
+            font-weight: 700;
+            font-size: 16px;
+            margin-bottom: 8px;
+        }
+
+        .project-description {
+            font-size: 13px;
+            color: var(--text-secondary);
+            margin-bottom: 12px;
+        }
+
+        .progress-bar {
+            background: var(--border-color);
+            height: 8px;
+            border-radius: 4px;
+            overflow: hidden;
+            margin-bottom: 8px;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+            transition: width 0.3s;
+            width: 0%;
+        }
+
+        .project-meta {
+            display: flex;
+            justify-content: space-between;
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+
+        /* Two Column Layout */
+        .two-column {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 24px;
+        }
+
+        @media (max-width: 1024px) {
+            .layout {
+                grid-template-columns: 1fr;
+            }
+
+            .sidebar {
+                position: static;
+            }
+
+            .two-column {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* Flash Messages */
+        .flash-messages {
+            position: fixed;
+            top: 24px;
+            right: 24px;
+            z-index: 2000;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            max-width: 400px;
+        }
+
+        .flash-message {
+            padding: 16px 24px;
+            border-radius: 12px;
+            background: white;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+            font-weight: 600;
+            font-size: 14px;
+            animation: slideInRight 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+            border-left: 4px solid var(--accent-primary);
+        }
+
+        .flash-message.success {
+            border-left-color: var(--accent-success);
+            color: var(--accent-success);
+        }
+
+        .flash-message.error {
+            border-left-color: var(--accent-danger);
+            color: var(--accent-danger);
+        }
+
+        @keyframes slideInRight {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        @keyframes slideOutRight {
+            from {
+                transform: translateX(0);
+                opacity: 1;
+            }
+
+            to {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <!-- Flash Messages -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+    <div class="flash-messages">
+        {% for category, message in messages %}
+        <div class="flash-message {{ category }}">{{ message }}</div>
+        {% endfor %}
+    </div>
+    {% endif %}
+    {% endwith %}
+
+    <div class="container">
+        <div class="layout">
+            <!-- Sidebar -->
+            <div class="sidebar">
+                <div class="company-logo">WORKPRO</div>
+
+                <div class="user-profile">
+                    <div class="user-avatar">{{ current_user.username[0].upper() }}</div>
+                    <div>
+                        <div class="user-name">{{ current_user.username }}</div>
+                        <div class="user-role">Empleado</div>
+                    </div>
+                </div>
+
+                <ul class="nav-menu">
+                    <li class="nav-item">
+                        <div class="nav-link active" onclick="showSection('dashboard', event)">
+                            <span>Dashboard</span>
+                        </div>
+                    </li>
+                    <li class="nav-item">
+                        <div class="nav-link" onclick="showSection('tasks', event)">
+                            <span>Mis Tareas</span>
+                        </div>
+                    </li>
+                    <li class="nav-item">
+                        <div class="nav-link" onclick="showSection('projects', event)">
+                            <span>Proyectos</span>
+                        </div>
+                    </li>
+                    <li class="nav-item">
+                        <div class="nav-link" onclick="showSection('stats', event)">
+                            <span>Estadísticas</span>
+                        </div>
+                    </li>
+                </ul>
+
+                <div class="logout-link">
+                    <div class="nav-link" onclick="logout()">
+                        <span>Cerrar Sesión</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Main Content -->
+            <div class="main-content">
+                <!-- Welcome Banner -->
+                <div class="welcome-banner">
+                    <div class="welcome-title">¡Hola, {{ current_user.username }}!</div>
+                    <div class="welcome-subtitle">Tienes {{ pending_tasks }} tareas pendientes y {{ in_progress_tasks }}
+                        en progreso</div>
+                </div>
+
+                <!-- Quick Stats -->
+                <div class="quick-stats">
+                    <div class="stat-card">
+                        <div class="stat-label">Tareas Pendientes</div>
+                        <div class="stat-value">{{ pending_tasks }}</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">En Proceso</div>
+                        <div class="stat-value">{{ in_progress_tasks }}</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Completadas</div>
+                        <div class="stat-value">{{ completed_tasks }}</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Proyectos Activos</div>
+                        <div class="stat-value">{{ my_projects|length }}</div>
+                    </div>
+                </div>
+
+                <!-- Dashboard Section -->
+                <div id="dashboard-section" class="section">
+                    <div class="section-header">
+                        <div class="section-title">Resumen de Actividades</div>
+                    </div>
+
+                    <div class="two-column">
+                        <div>
+                            <h4 style="margin-bottom: 16px; font-size: 16px;">Tareas de Hoy</h4>
+                            <div class="tasks-list">
+                                {% for task in my_tasks[:5] %}
+                                <div class="task-item" data-id="{{ task.id }}"
+                                    data-status="{{ task.status or 'pendiente' }}"
+                                    onclick="updateTaskStatusFromBtn(this)">
+                                    <div class="task-checkbox {% if task.status == 'completada' %}completed{% endif %}"
+                                        id="check-{{ task.id }}">
+                                    </div>
+                                    <div class="task-content">
+                                        <div class="task-title">{{ task.title }}</div>
+                                        <div class="task-meta">
+                                            <span>{{ task.due_date.strftime('%d/%m/%Y') if task.due_date else 'Sin
+                                                fecha' }}</span>
+                                            <span
+                                                class="task-priority priority-{{ 'high' if task.priority == 'alta' else 'media' if task.priority == 'media' else 'low' }}">
+                                                {{ task.priority.capitalize() }}
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+
+                        <div>
+                            <h4 style="margin-bottom: 16px; font-size: 16px;">Proyectos Recientes</h4>
+                            <div class="projects-grid">
+                                {% for project in my_projects[:3] %}
+                                <div class="project-card">
+                                    <div class="project-name">{{ project.name }}</div>
+                                    <div class="project-description">{{ (project.description or "")[:100] }}...</div>
+                                    <div class="progress-bar">
+                                        <div class="progress-fill" data-progress="{{ project.progress or 0 }}"></div>
+                                    </div>
+                                    <div class="project-meta">
+                                        <span>{{ project.progress }}% completado</span>
+                                        <span>{{ project.status.capitalize() }}</span>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tasks Section -->
+                <div id="tasks-section" class="section" style="display: none;">
+                    <div class="section-header">
+                        <div class="section-title">Gestión de Tareas</div>
+                    </div>
+
+                    <div class="filter-tabs">
+                        <div class="filter-tab active" onclick="filterTasks('all', event)">Todas</div>
+                        <div class="filter-tab" onclick="filterTasks('pendiente', event)">Pendientes</div>
+                        <div class="filter-tab" onclick="filterTasks('en_proceso', event)">En Proceso</div>
+                        <div class="filter-tab" onclick="filterTasks('completada', event)">Completadas</div>
+                    </div>
+
+                    <div class="tasks-list" id="tasksList">
+                        {% for task in my_tasks %}
+                        <div class="task-item task-status-{{ task.status or 'pendiente' }}" data-id="{{ task.id }}"
+                            data-status="{{ task.status or 'pendiente' }}" onclick="updateTaskStatusFromBtn(this)">
+                            <div class="task-checkbox {% if task.status == 'completada' %}completed{% endif %}"
+                                id="check-{{ task.id }}">
+                            </div>
+                            <div class="task-content">
+                                <div class="task-title">{{ task.title }}</div>
+                                <div style="font-size: 13px; color: var(--text-secondary); margin: 4px 0;">
+                                    {{ task.description or "" }}
+                                </div>
+                                <div class="task-meta">
+                                    <span>Vence: {{ task.due_date.strftime('%d/%m/%Y') if task.due_date else 'Sin fecha'
+                                        }}</span>
+                                    <span
+                                        class="task-priority priority-{{ 'high' if task.priority == 'alta' else 'media' if task.priority == 'media' else 'low' }}">
+                                        {{ task.priority.capitalize() }}
+                                    </span>
+                                    <span
+                                        style="padding: 2px 8px; background: rgba(79, 70, 229, 0.1); color: var(--accent-primary); border-radius: 4px;">
+                                        {{ task.status.replace('_', ' ').capitalize() }}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                <!-- Projects Section -->
+                <div id="projects-section" class="section" style="display: none;">
+                    <div class="section-header">
+                        <div class="section-title">Mis Proyectos</div>
+                    </div>
+
+                    <div class="projects-grid">
+                        {% for project in my_projects %}
+                        <div class="project-card">
+                            <div class="project-name">{{ project.name }}</div>
+                            <div class="project-description">{{ project.description or "" }}</div>
+                            <div class="progress-bar">
+                                <div class="progress-fill" data-progress="{{ project.progress or 0 }}"></div>
+                            </div>
+                            <div class="project-meta">
+                                <span>{{ project.progress }}% completado</span>
+                                <span>Estado: {{ project.status.capitalize() }}</span>
+                            </div>
+                            {% if project.deadline %}
+                            <div style="margin-top: 8px; font-size: 12px; color: var(--text-secondary);">
+                                Fecha límite: {{ project.deadline.strftime('%d/%m/%Y') }}
+                            </div>
+                            {% endif %}
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                <!-- Stats Section -->
+                <div id="stats-section" class="section" style="display: none;">
+                    <div class="section-header">
+                        <div class="section-title">Estadísticas Detalladas</div>
+                    </div>
+
+                    <div class="quick-stats" style="margin-bottom: 24px;">
+                        <div class="stat-card">
+                            <div class="stat-label">Total de Tareas</div>
+                            <div class="stat-value">{{ my_tasks|length }}</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-label">Tasa de Finalización</div>
+                            <div class="stat-value">{{ ((completed_tasks / (my_tasks|length) * 100) if my_tasks|length >
+                                0 else 0)|round }}%</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-label">Proyectos Activos</div>
+                            <div class="stat-value">{{ my_projects|length }}</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-label">Productividad</div>
+                            <div class="stat-value">Alta</div>
+                        </div>
+                    </div>
+
+                    <div style="background: var(--bg-accent); padding: 24px; border-radius: 12px;">
+                        <h4 style="margin-bottom: 16px;">Distribución de Tareas</h4>
+                        <div style="display: flex; gap: 16px; flex-wrap: wrap;">
+                            <div style="flex: 1; min-width: 200px;">
+                                <div style="font-size: 14px; color: var(--text-secondary); margin-bottom: 4px;">
+                                    Pendientes</div>
+                                <div style="font-size: 24px; font-weight: 700; color: var(--accent-warning);">{{
+                                    pending_tasks }}</div>
+                            </div>
+                            <div style="flex: 1; min-width: 200px;">
+                                <div style="font-size: 14px; color: var(--text-secondary); margin-bottom: 4px;">En
+                                    Proceso</div>
+                                <div style="font-size: 24px; font-weight: 700; color: var(--accent-secondary);">{{
+                                    in_progress_tasks }}</div>
+                            </div>
+                            <div style="flex: 1; min-width: 200px;">
+                                <div style="font-size: 14px; color: var(--text-secondary); margin-bottom: 4px;">
+                                    Completadas</div>
+                                <div style="font-size: 24px; font-weight: 700; color: var(--accent-success);">{{
+                                    completed_tasks }}</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function showSection(section, event) {
+            // Hide all sections
+            document.getElementById('dashboard-section').style.display = 'none';
+            document.getElementById('tasks-section').style.display = 'none';
+            document.getElementById('projects-section').style.display = 'none';
+            document.getElementById('stats-section').style.display = 'none';
+
+            // Show selected section
+            document.getElementById(section + '-section').style.display = 'block';
+
+            // Update active nav link
+            document.querySelectorAll('.nav-link').forEach(link => link.classList.remove('active'));
+            if (event) {
+                event.target.closest('.nav-link').classList.add('active');
+            }
+        }
+
+        function filterTasks(status, event) {
+            const tasks = document.querySelectorAll('.task-item');
+
+            tasks.forEach(task => {
+                if (status === 'all' || task.classList.contains('task-status-' + status)) {
+                    task.style.display = 'flex';
+                } else {
+                    task.style.display = 'none';
+                }
+            });
+
+            // Update active filter
+            document.querySelectorAll('.filter-tab').forEach(tab => tab.classList.remove('active'));
+            if (event) {
+                event.target.classList.add('active');
+            }
+        }
+
+        async function updateTaskStatus(taskId, currentStatus) {
+            if (currentStatus === 'completada') {
+                return; // Already completed
+            }
+
+            const newStatus = currentStatus === 'pendiente' ? 'en_proceso' : 'completada';
+
+            try {
+                const formData = new FormData();
+                formData.append('status', newStatus);
+
+                const response = await fetch(`/employee/update_task/${taskId}`, {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (response.ok) {
+                    const checkbox = document.getElementById(`check-${taskId}`);
+                    if (newStatus === 'completada') {
+                        checkbox.classList.add('completed');
+                        checkbox.innerHTML = '✓';
+                    }
+
+                    // Reload page to update stats
+                    setTimeout(() => location.reload(), 500);
+                }
+            } catch (error) {
+                console.error('Error updating task:', error);
+            }
+        }
+
+        function updateTaskStatusFromBtn(btn) {
+            const taskId = btn.getAttribute('data-id');
+            const currentStatus = btn.getAttribute('data-status');
+            updateTaskStatus(taskId, currentStatus);
+        }
+
+        function logout() {
+            if (confirm('¿Cerrar sesión?')) {
+                window.location.href = "{{ url_for('logout') }}";
+            }
+        }
+        // Auto-hide flash messages
+        setTimeout(() => {
+            const flashMessages = document.querySelectorAll('.flash-message');
+            flashMessages.forEach(msg => {
+                msg.style.animation = 'slideOutRight 0.4s ease forwards';
+                setTimeout(() => msg.remove(), 400);
+            });
+        }, 5000);
+        // Initialize progress bars
+        document.querySelectorAll('.progress-fill').forEach(fill => {
+            const progress = fill.getAttribute('data-progress');
+            if (progress) {
+                fill.style.width = progress + '%';
+            }
+        });
+    </script>
+</body>
+
+</html>
