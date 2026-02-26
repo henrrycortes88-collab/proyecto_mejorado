@@ -6,11 +6,13 @@ from werkzeug.security import generate_password_hash
 def init_db():
     """Inicializa la base de datos con tablas y datos de ejemplo."""
     with app.app_context():
-        print("Eliminando tablas existentes...")
-        db.drop_all()
-        
-        print("Creando nuevas tablas...")
+        print("Creando tablas si no existen...")
         db.create_all()
+
+        # Si ya hay usuarios, no insertar datos de nuevo
+        if User.query.first():
+            print("✓ Base de datos ya inicializada, omitiendo inserción de datos.")
+            return
 
         print("Inicializando base de datos con datos de ejemplo...")
 
@@ -45,7 +47,7 @@ def init_db():
         db.session.add_all([admin, empleado1, empleado2, cliente1, cliente2, cliente3])
         db.session.commit()
 
-        # PROYECTO
+        # PROYECTOS
         proyecto1 = Project(
             name="Rediseño Web Corporativo",
             description="Renovación completa del sitio web de la empresa",
@@ -63,7 +65,7 @@ def init_db():
             client_id=cliente1.id,
             deadline=datetime.utcnow() + timedelta(days=30)
         )
-        # ... rest of projects
+
         proyecto3 = Project(
             name="Sistema de Reportes",
             description="Implementación de sistema de reportes automatizados",
@@ -94,7 +96,7 @@ def init_db():
         db.session.add_all([proyecto1, proyecto2, proyecto3, proyecto4, proyecto5])
         db.session.commit()
 
-        # ========== TAREAS ==========
+        # TAREAS
         tarea1 = Task(
             title="Revisar propuesta de diseño Q1",
             status="en_proceso",
@@ -116,7 +118,7 @@ def init_db():
         db.session.add_all([tarea1, tarea2])
         db.session.commit()
 
-        # ========== DOCUMENTOS SEGUROS ==========
+        # DOCUMENTOS
         doc1 = Document(
             title="Factura Enero 2024",
             description="Factura por servicios de consultoría IT",
@@ -144,7 +146,7 @@ def init_db():
         db.session.add_all([doc1, doc2, doc3])
         db.session.commit()
 
-        # ========== TICKETS DE SOPORTE ==========
+        # TICKETS
         ticket1 = SupportTicket(
             subject="Problema con acceso al portal",
             message="No puedo acceder a mi cuenta desde ayer",
