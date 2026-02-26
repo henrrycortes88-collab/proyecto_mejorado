@@ -560,5 +560,8 @@ def internal_error(error):
     return render_template('errors/500.html'), 500
 
 if __name__ == '__main__':
-    # Producción: debug=False para evitar exposición de trazas de error
     app.run(host='0.0.0.0', port=8080, debug=False)
+
+    # Auto-inicializar tablas al arrancar
+with app.app_context():
+    db.create_all()
