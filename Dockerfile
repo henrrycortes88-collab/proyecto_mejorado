@@ -25,5 +25,5 @@ COPY . .
 EXPOSE 8080
 
 # Comando para iniciar la aplicación con Gunicorn
-CMD ["gunicorn", "--bind", "0.0.0.0:8080", "app:app"]
+CMD ["sh", "-c", "python init_db.py && gunicorn --bind 0.0.0.0:8080 app:app]
 

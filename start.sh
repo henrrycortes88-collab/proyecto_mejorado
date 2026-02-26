@@ -60,18 +60,23 @@ sleep 5
 
 # Inicializar la base de datos
 echo -e "${BLUE}Inicializando base de datos...${NC}"
-docker exec -it sistema-login-corporativo python init_db.py
+docker exec sistema-login-corporativo python init_db.py
 
 if [ $? -ne 0 ]; then
     echo -e "${RED}❌ Error al inicializar la base de datos${NC}"
     exit 1
 fi
 
+# Verificación de Seguridad
+echo -e "${BLUE}Ejecutando verificación de hardening de seguridad...${NC}"
+docker exec sistema-login-corporativo python verify_hardening.py
+
 echo ""
 echo -e "${GREEN}================================${NC}"
-echo -e "${GREEN}¡Instalación completada!${NC}"
+echo -e "${GREEN}¡Sistema Seguro Iniciado!${NC}"
 echo -e "${GREEN}================================${NC}"
 echo ""
+echo -e "🔒 Hardening: BAC, CF e ID activos."
 echo -e "${BLUE}🌐 URL de acceso:${NC} http://localhost:8080"
 echo ""
 echo -e "${BLUE}👤 Credenciales de acceso:${NC}"

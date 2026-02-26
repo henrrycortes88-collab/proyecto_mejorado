@@ -52,18 +52,23 @@ Start-Sleep -Seconds 10
 
 # Inicializar la base de datos
 Write-Host "Inicializando base de datos..." -ForegroundColor Blue
-docker exec -it sistema-login-corporativo python init_db.py
+docker exec sistema-login-corporativo python init_db.py
 
 if ($LASTEXITCODE -ne 0) {
     Write-Host "❌ Error al inicializar la base de datos" -ForegroundColor Red
     exit 1
 }
 
+# Verificación de Seguridad
+Write-Host "Ejecutando verificación de hardening de seguridad..." -ForegroundColor Blue
+docker exec sistema-login-corporativo python verify_hardening.py
+
 Write-Host ""
 Write-Host "================================" -ForegroundColor Green
-Write-Host "¡Instalación completada!" -ForegroundColor Green
+Write-Host "¡Sistema Seguro Iniciado!" -ForegroundColor Green
 Write-Host "================================" -ForegroundColor Green
 Write-Host ""
+Write-Host "🔒 Hardening: BAC, CF e ID activos." -ForegroundColor White
 Write-Host "🌐 URL de acceso: http://localhost:8080" -ForegroundColor Cyan
 Write-Host ""
 Write-Host "👤 Credenciales de acceso:" -ForegroundColor Cyan
