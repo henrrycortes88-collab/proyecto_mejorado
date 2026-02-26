@@ -605,8 +605,8 @@
         <div class="nav-tabs">
             <div class="nav-tab active" onclick="showSection('overview', event)">Resumen</div>
             <div class="nav-tab" onclick="showSection('projects', event)">Mis Proyectos</div>
+            <div class="nav-tab" onclick="showSection('documents', event)">Mis Documentos</div>
             <div class="nav-tab" onclick="showSection('tickets', event)">Tickets de Soporte</div>
-            <div class="nav-tab" onclick="showSection('documents', event)">Documentos</div>
         </div>
 
         <!-- Stats -->
@@ -622,10 +622,6 @@
             <div class="stat-card">
                 <div class="stat-label">Tickets Abiertos</div>
                 <div class="stat-value">{{ open_tickets }}</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-label">Documentos</div>
-                <div class="stat-value">{{ total_documents }}</div>
             </div>
         </div>
 
@@ -684,6 +680,28 @@
                 </div>
                 {% endif %}
             </div>
+
+            <!-- Herramienta de Notas Privadas (CIFRADO EN REPOSO) -->
+            <div class="card" style="border-top: 4px solid var(--accent-secondary);">
+                <div class="card-header">
+                    <div class="card-title">Notas Privadas Seguras</div>
+                    <span class="status-badge"
+                        style="background: rgba(240, 147, 251, 0.1); color: var(--accent-secondary);">AES-128
+                        Cifrado</span>
+                </div>
+                <p style="font-size: 14px; color: var(--text-secondary); margin-bottom: 16px;">
+                    Estas notas se cifran en el servidor antes de guardarse en la base de datos. Solo tú puedes verlas.
+                </p>
+                <form action="{{ url_for('update_notes') }}" method="POST">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <textarea name="note" class="form-textarea" placeholder="Escribe aquí información sensible..."
+                        style="margin-bottom: 16px;">{{ decrypted_note }}</textarea>
+                    <button type="submit" class="header-btn"
+                        style="background: var(--accent-secondary); color: white; width: 100%; border: none;">
+                        Guardar Notas de Forma Segura
+                    </button>
+                </form>
+            </div>
         </div>
 
         <!-- Projects Section -->
@@ -721,6 +739,45 @@
             </div>
         </div>
 
+        <!-- Documents Section -->
+        <div id="documents-section" style="display: none;">
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title">Mis Documentos Seguros</div>
+                    <span class="status-badge"
+                        style="background: rgba(74, 222, 128, 0.1); color: var(--accent-success);">Propiedad
+                        Validada</span>
+                </div>
+                <p style="font-size: 14px; color: var(--text-secondary); margin-bottom: 24px;">
+                    Accede a tus facturas y contratos de forma segura. El sistema verifica tu identidad antes de cada
+                    descarga.
+                </p>
+
+                {% if my_documents %}
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px;">
+                    {% for doc in my_documents %}
+                    <a href="{{ url_for('view_document', doc_id=doc.id) }}"
+                        style="text-decoration: none; color: inherit;">
+                        <div class="document-card">
+                            <div class="document-icon">📄</div>
+                            <div class="document-info">
+                                <div class="document-title">{{ doc.title }}</div>
+                                <div class="document-meta">Tipo: {{ doc.file_type.capitalize() }}</div>
+                            </div>
+                            <div class="card-action">Ver →</div>
+                        </div>
+                    </a>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="empty-state">
+                    <div class="empty-state-icon">📂</div>
+                    <p>No hay documentos disponibles para tu cuenta</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
         <!-- Tickets Section -->
         <div id="tickets-section" style="display: none;">
             <div class="card">
@@ -753,32 +810,6 @@
             </div>
         </div>
 
-        <!-- Documents Section -->
-        <div id="documents-section" style="display: none;">
-            <div class="card">
-                <div class="card-header">
-                    <div class="card-title">Mis Documentos</div>
-                </div>
-
-                {% if my_documents %}
-                {% for doc in my_documents %}
-                <div class="document-card">
-                    <div class="document-info">
-                        <div class="document-title">{{ doc.title }}</div>
-                        <div class="document-meta">
-                            {{ (doc.file_type or "documento").capitalize() }} • {{ doc.created_at.strftime('%d/%m/%Y')
-                            if doc.created_at else 'N/A' }}
-                        </div>
-                    </div>
-                </div>
-                {% endfor %}
-                {% else %}
-                <div class="empty-state">
-                    <p>No tienes documentos disponibles</p>
-                </div>
-                {% endif %}
-            </div>
-        </div>
     </div>
 
     <!-- Create Ticket Modal -->
@@ -789,6 +820,7 @@
                 Soporte</h2>
 
             <form action="{{ url_for('client_create_ticket') }}" method="POST">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <div class="form-group">
                     <label class="form-label">Asunto</label>
                     <input type="text" name="subject" class="form-input" required
@@ -821,8 +853,8 @@
             // Hide all sections
             document.getElementById('overview-section').style.display = 'none';
             document.getElementById('projects-section').style.display = 'none';
-            document.getElementById('tickets-section').style.display = 'none';
             document.getElementById('documents-section').style.display = 'none';
+            document.getElementById('tickets-section').style.display = 'none';
 
             // Show selected section
             document.getElementById(section + '-section').style.display = 'block';

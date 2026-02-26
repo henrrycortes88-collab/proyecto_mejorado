@@ -1,28 +1,89 @@
-from flask import Flask, render_template, redirect, url_for, flash, request, jsonify
-from flask_login import LoginManager, login_user, logout_user, login_required, current_user
-from models import db, User, Task, Project, SupportTicket, Document
 from datetime import datetime, timedelta
 import os
+import base64
+from functools import wraps
+from flask import Flask, render_template, redirect, url_for, flash, request, jsonify, session
+from flask_login import LoginManager, login_user, logout_user, login_required, current_user
+from flask_wtf.csrf import CSRFProtect
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
+from email_validator import validate_email, EmailNotValidError
 from werkzeug.security import generate_password_hash, check_password_hash
+from cryptography.fernet import Fernet
+from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
+from models import db, User, Task, Project, SupportTicket, Document
 
 # Inicialización de la aplicación Flask
 app = Flask(__name__)
 # Usar variable de entorno para la clave secreta o una por defecto para desarrollo
-app.secret_key = os.environ.get('SECRET_KEY', 'dev_key_12345_cambiar_en_produccion')
+SECRET_KEY = os.environ.get('SECRET_KEY', 'dev_key_12345_cambiar_en_produccion')
+app.secret_key = SECRET_KEY
+
+# Lógica de Cifrado (AES-128 via Fernet)
+SECURE_SALT = os.environ.get('SECURITY_SALT', 'secure_salt_123').encode()
+
+def get_cipher():
+    """Genera un objeto Fernet basado en la SECRET_KEY."""
+    kdf = PBKDF2HMAC(
+        algorithm=hashes.SHA256(),
+        length=32,
+        salt=SECURE_SALT,
+        iterations=100000,
+    )
+    key = base64.urlsafe_b64encode(kdf.derive(SECRET_KEY.encode()))
+    return Fernet(key)
+
+def encrypt_data(data):
+    """Cifra una cadena de texto."""
+    if not data: return None
+    f = get_cipher()
+    return f.encrypt(data.encode()).decode()
+
+def decrypt_data(encrypted_data):
+    """Descifra una cadena de texto."""
+    if not encrypted_data: return None
+    try:
+        f = get_cipher()
+        return f.decrypt(encrypted_data.encode()).decode()
+    except Exception:
+        return "Error al descifrar datos"
 
 # Configuración de la base de datos
-db_host = os.environ.get('DB_HOST', 'db')
-app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get(
+db_host = os.environ.get('DB_HOST', 'login-db')
+db_uri = os.environ.get(
     'SQLALCHEMY_DATABASE_URI', 
     f'postgresql://usuario:password@{db_host}:5432/login_db'
 )
+app.config['SQLALCHEMY_DATABASE_URI'] = db_uri
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 # Inicialización de extensiones
 db.init_app(app)
+csrf = CSRFProtect(app)
+limiter = Limiter(
+    key_func=get_remote_address,
+    app=app,
+    default_limits=["200 per day", "50 per hour"],
+    storage_uri="memory://",
+)
+
 login_manager = LoginManager()
 login_manager.login_view = 'login'
+login_manager.session_protection = "strong"  # Mitigación de Session Hijacking
 login_manager.init_app(app)
+
+def role_required(role):
+    """Decorador para restringir acceso por rol."""
+    def decorator(f):
+        @wraps(f)
+        def decorated_function(*args, **kwargs):
+            if not current_user.is_authenticated or current_user.role != role:
+                flash('Acceso no autorizado para tu nivel de privilegios.', 'error')
+                return redirect(url_for('home'))
+            return f(*args, **kwargs)
+        return decorated_function
+    return decorator
 
 
 @login_manager.user_loader
@@ -44,6 +105,7 @@ def home():
     return redirect(url_for('login'))
 
 @app.route('/login', methods=['GET', 'POST'])
+@limiter.limit("10 per minute", methods=["POST"])
 def login():
     """Ruta de inicio de sesión."""
     if request.method == 'POST':
@@ -52,6 +114,8 @@ def login():
         user = User.query.filter_by(username=username).first()
         
         if user and check_password_hash(user.password_hash, password):
+            # Mitigación de Session Fixation
+            session.clear()
             login_user(user)
             user.last_login = datetime.utcnow()
             db.session.commit()
@@ -69,14 +133,13 @@ def logout():
     return redirect(url_for('login'))
 
 
-# ==================== RUTAS DE ADMINISTRADOR ====================
+#  RUTAS DE ADMINISTRADOR 
 
 @app.route('/admin')
 @login_required
+@role_required('admin')
 def admin_dashboard():
     """Dashboard para administradores con estadísticas."""
-    if current_user.role != 'admin':
-        return "Acceso Denegado", 403
     
     # Obtener todos los usuarios
     users = User.query.all()
@@ -108,10 +171,9 @@ def admin_dashboard():
 
 @app.route('/admin/search', methods=['GET'])
 @login_required
+@role_required('admin')
 def admin_search():
     """Búsqueda de usuarios para administrador."""
-    if current_user.role != 'admin':
-        return jsonify({'error': 'Acceso denegado'}), 403
     
     query = request.args.get('q', '').strip()
     role_filter = request.args.get('role', '')
@@ -147,15 +209,23 @@ def admin_search():
 
 @app.route('/admin/create_user', methods=['POST'])
 @login_required
+@role_required('admin')
+@limiter.limit("5 per minute")
 def create_user():
     """Crear nuevo usuario."""
-    if current_user.role != 'admin':
-        return "Acceso Denegado", 403
     
     username = request.form['username']
     password = request.form['password']
     role = request.form['role']
-    email = request.form.get('email', '')
+    email = request.form.get('email', '').strip()
+    
+    # Validación de Email
+    if email:
+        try:
+            validate_email(email)
+        except EmailNotValidError as e:
+            flash(f'Email no válido: {str(e)}', 'error')
+            return redirect(url_for('admin_dashboard'))
     
     existing_user = User.query.filter_by(username=username).first()
     if existing_user:
@@ -171,10 +241,10 @@ def create_user():
 
 @app.route('/admin/edit_user/<int:user_id>', methods=['POST'])
 @login_required
+@role_required('admin')
+@limiter.limit("10 per minute")
 def edit_user(user_id):
     """Editar usuario existente."""
-    if current_user.role != 'admin':
-        return "Acceso Denegado", 403
     
     user = db.session.get(User, user_id)
     if not user:
@@ -183,7 +253,15 @@ def edit_user(user_id):
     username = request.form.get('username')
     role = request.form.get('role')
     password = request.form.get('password')
-    email = request.form.get('email', '')
+    email = request.form.get('email', '').strip()
+    
+    # Validación de Email
+    if email:
+        try:
+            validate_email(email)
+        except EmailNotValidError as e:
+            flash(f'Email no válido: {str(e)}', 'error')
+            return redirect(url_for('admin_dashboard'))
     
     existing_user = User.query.filter_by(username=username).first()
     if existing_user and existing_user.id != user.id:
@@ -207,10 +285,10 @@ def edit_user(user_id):
 
 @app.route('/admin/delete_user/<int:user_id>', methods=['POST'])
 @login_required
+@role_required('admin')
+@limiter.limit("5 per minute")
 def delete_user(user_id):
     """Eliminar usuario con manejo de errores robusto."""
-    if current_user.role != 'admin':
-        return "Acceso Denegado", 403
         
     if current_user.id == user_id:
         flash('No puedes eliminar tu propia cuenta', 'error')
@@ -234,14 +312,13 @@ def delete_user(user_id):
     return redirect(url_for('admin_dashboard'))
 
 
-# ==================== RUTAS DE EMPLEADO ====================
+# RUTAS DE EMPLEADO 
 
 @app.route('/employee')
 @login_required
+@role_required('empleado')
 def employee_dashboard():
     """Dashboard para empleados."""
-    if current_user.role != 'empleado':
-        return "Acceso Denegado", 403
     
     # Tareas del empleado
     my_tasks = Task.query.filter_by(assigned_to=current_user.id).all()
@@ -252,7 +329,7 @@ def employee_dashboard():
         in_progress_tasks = Task.query.filter_by(assigned_to=current_user.id, status='en_proceso').count()
         completed_tasks = Task.query.filter_by(assigned_to=current_user.id, status='completada').count()
         
-        # Proyectos relacionados
+        
         my_projects = Project.query.join(Task).filter(Task.assigned_to == current_user.id).distinct().all()
     except Exception as e:
         app.logger.error(f"Error al cargar datos de empleado: {str(e)}")
@@ -269,10 +346,9 @@ def employee_dashboard():
 
 @app.route('/employee/tasks')
 @login_required
+@role_required('empleado')
 def employee_tasks():
     """Ver todas las tareas del empleado."""
-    if current_user.role != 'empleado':
-        return "Acceso Denegado", 403
     
     status_filter = request.args.get('status', '')
     priority_filter = request.args.get('priority', '')
@@ -298,10 +374,9 @@ def employee_tasks():
 
 @app.route('/employee/update_task/<int:task_id>', methods=['POST'])
 @login_required
+@role_required('empleado')
 def employee_update_task(task_id):
     """Actualizar estado de una tarea."""
-    if current_user.role != 'empleado':
-        return jsonify({'error': 'Acceso denegado'}), 403
     
     task = db.session.get(Task, task_id)
     if not task:
@@ -321,14 +396,13 @@ def employee_update_task(task_id):
     return jsonify({'error': 'Estado no válido'}), 400
 
 
-# ==================== RUTAS DE CLIENTE ====================
+#  RUTAS DE CLIENTE 
 
 @app.route('/client')
 @login_required
+@role_required('cliente')
 def client_dashboard():
     """Dashboard para clientes."""
-    if current_user.role != 'cliente':
-        return "Acceso Denegado", 403
     
     # Proyectos del cliente
     my_projects = Project.query.filter_by(client_id=current_user.id).all()
@@ -336,35 +410,33 @@ def client_dashboard():
     # Tickets del cliente
     my_tickets = SupportTicket.query.filter_by(client_id=current_user.id).order_by(SupportTicket.created_at.desc()).limit(5).all()
     
-    # Documentos del cliente
-    my_documents = Document.query.filter_by(client_id=current_user.id).order_by(Document.created_at.desc()).limit(5).all()
+    # Estadísticas para el dashboard
+    active_projects = Project.query.filter_by(client_id=current_user.id, status='activo').count()
+    completed_projects = Project.query.filter_by(client_id=current_user.id, status='completado').count()
+    open_tickets = SupportTicket.query.filter_by(client_id=current_user.id, status='abierto').count()
     
-    # Estadísticas con manejo de errores
-    try:
-        active_projects = Project.query.filter_by(client_id=current_user.id, status='activo').count()
-        completed_projects = Project.query.filter_by(client_id=current_user.id, status='completado').count()
-        open_tickets = SupportTicket.query.filter_by(client_id=current_user.id, status='abierto').count()
-        total_documents = Document.query.filter_by(client_id=current_user.id).count()
-    except Exception as e:
-        app.logger.error(f"Error al cargar estadísticas de cliente: {str(e)}")
-        active_projects = completed_projects = open_tickets = total_documents = 0
+    # Documentos del cliente
+    my_documents = Document.query.filter_by(client_id=current_user.id).all()
+    
+    # Nota privada descifrada (Segura, solo se descifra para la vista del dueño)
+    decrypted_note = decrypt_data(current_user.encrypted_note) or ""
     
     return render_template('dashboard_client.html',
                          my_projects=my_projects,
                          my_tickets=my_tickets,
                          my_documents=my_documents,
+                         decrypted_note=decrypted_note,
                          active_projects=active_projects,
                          completed_projects=completed_projects,
-                         open_tickets=open_tickets,
-                         total_documents=total_documents)
+                         open_tickets=open_tickets)
 
 
 @app.route('/client/create_ticket', methods=['POST'])
 @login_required
+@role_required('cliente')
+@limiter.limit("3 per minute")
 def client_create_ticket():
     """Crear nuevo ticket de soporte."""
-    if current_user.role != 'cliente':
-        return "Acceso Denegado", 403
     
     subject = request.form['subject']
     message = request.form['message']
@@ -385,10 +457,9 @@ def client_create_ticket():
 
 @app.route('/client/my_projects')
 @login_required
+@role_required('cliente')
 def client_projects():
     """Ver todos los proyectos del cliente."""
-    if current_user.role != 'cliente':
-        return "Acceso Denegado", 403
     
     projects = Project.query.filter_by(client_id=current_user.id).all()
     
@@ -404,10 +475,9 @@ def client_projects():
 
 @app.route('/client/my_tickets')
 @login_required
+@role_required('cliente')
 def client_tickets():
     """Ver todos los tickets del cliente."""
-    if current_user.role != 'cliente':
-        return "Acceso Denegado", 403
     
     tickets = SupportTicket.query.filter_by(client_id=current_user.id).order_by(SupportTicket.created_at.desc()).all()
     
@@ -421,5 +491,74 @@ def client_tickets():
     } for t in tickets])
 
 
+
+@app.route('/client/document/<int:doc_id>')
+@login_required
+def view_document(doc_id):
+    """
+    Ruta segura para visualizar documentos. Verifica propiedad estrictamente.
+    """
+    doc = db.session.get(Document, doc_id)
+    if not doc:
+        return "Documento no encontrado", 404
+    
+    # VERIFICACIÓN DE PROPIEDAD: Solo el dueño o el admin pueden ver
+    if doc.client_id != current_user.id and current_user.role != 'admin':
+        return "Acceso Denegado: No tienes permiso para ver este recurso", 403
+    
+    return f"<h1>Documento Seguro: {doc.title}</h1><p>{doc.description}</p><p>Tipo: {doc.file_type}</p><a href='/client'>Volver</a>"
+
+
+@app.route('/client/notes', methods=['GET'])
+@login_required
+def get_notes():
+    """Obtiene las notas privadas descifradas."""
+    return jsonify({
+        "note": decrypt_data(current_user.encrypted_note) or ""
+    })
+
+
+@app.route('/client/notes/update', methods=['POST'])
+@login_required
+@limiter.limit("5 per minute")
+def update_notes():
+    """Actualiza las notas cifrándolas en reposo."""
+    note = request.form.get('note', '')
+    current_user.encrypted_note = encrypt_data(note)
+    db.session.commit()
+    flash('Notas privadas actualizadas y cifradas en reposo.', 'success')
+    return redirect(url_for('client_dashboard'))
+
+
+@app.after_request
+def add_security_headers(response):
+    """Añade encabezados de seguridad a todas las respuestas."""
+    response.headers['X-Content-Type-Options'] = 'nosniff'
+    response.headers['X-Frame-Options'] = 'DENY'
+    response.headers['X-XSS-Protection'] = '1; mode=block'
+    response.headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains'
+    response.headers['Content-Security-Policy'] = "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com;"
+    return response
+
+# Manejadores de Errores Personalizados (Prevención de Fuga de Información)
+@app.errorhandler(404)
+def not_found_error(error):
+    return render_template('errors/404.html'), 404
+
+@app.errorhandler(403)
+def forbidden_error(error):
+    return render_template('errors/403.html'), 403
+
+@app.errorhandler(429)
+def ratelimit_handler(e):
+    flash("Has excedido el límite de solicitudes. Por favor espera un momento.", "error")
+    return redirect(url_for('home'))
+
+@app.errorhandler(500)
+def internal_error(error):
+    db.session.rollback()
+    return render_template('errors/500.html'), 500
+
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=8080, debug=True)
+    # Producción: debug=False para evitar exposición de trazas de error
+    app.run(host='0.0.0.0', port=8080, debug=False)

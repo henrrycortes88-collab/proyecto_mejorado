@@ -9,12 +9,13 @@ services:
       - "8080:8080" # Puerto externo:interno
     restart: unless-stopped
     depends_on:
-      - db
+      db:
+        condition: service_healthy
     networks:
       - login-network
     environment:
       - TZ=America/Mexico_City
-      - SQLALCHEMY_DATABASE_URI=postgresql://usuario:password@db:5432/login_db
+      - SQLALCHEMY_DATABASE_URI=postgresql://usuario:password@login-db:5432/login_db
     volumes:
       - .:/app
     labels:

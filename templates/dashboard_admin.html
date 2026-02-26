@@ -717,6 +717,7 @@
 
         <!-- Main Grid -->
         <div class="main-grid">
+
             <!-- Quick Actions -->
             <div class="panel">
                 <div class="panel-header">
@@ -752,6 +753,7 @@
                     </div>
                 </div>
             </div>
+
         </div>
 
         <!-- Users Management Table -->
@@ -806,6 +808,7 @@
                             <form action="{{ url_for('delete_user', user_id=user.id) }}" method="POST"
                                 style="display:inline;"
                                 onsubmit="return confirm('¿Estás seguro de que deseas eliminar este usuario?');">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                 <button type="submit" class="icon-btn"
                                     style="color: var(--accent-danger); border-color: var(--accent-danger);">Eliminar</button>
                             </form>
@@ -824,6 +827,7 @@
             <h2 class="panel-title" style="margin-bottom: 24px; text-align: center;">NUEVO USUARIO</h2>
 
             <form action="{{ url_for('create_user') }}" method="POST">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <div class="form-group">
                     <label class="form-label">Nombre de Usuario</label>
                     <input type="text" name="username" class="form-input" required autocomplete="off">
@@ -861,6 +865,7 @@
             <h2 class="panel-title" style="margin-bottom: 24px; text-align: center;">EDITAR USUARIO</h2>
 
             <form id="editUserForm" action="" method="POST">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <div class="form-group">
                     <label class="form-label">Nombre de Usuario</label>
                     <input type="text" id="edit_username" name="username" class="form-input" required
@@ -955,6 +960,7 @@
                             <td>
                                 <button class="icon-btn" onclick='openEditModal(${user.id}, ${JSON.stringify(user.username)}, ${JSON.stringify(user.email || "")}, ${JSON.stringify(user.role)})'>Editar</button>
                                 <form action="/admin/delete_user/${user.id}" method="POST" style="display:inline;" onsubmit="return confirm('¿Estás seguro?');">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                     <button type="submit" class="icon-btn" style="color: var(--accent-danger); border-color: var(--accent-danger);">Eliminar</button>
                                 </form>
                             </td>

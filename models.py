@@ -15,6 +15,7 @@ class User(UserMixin, db.Model):
     email = db.Column(db.String(120))
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     last_login = db.Column(db.DateTime)
+    encrypted_note = db.Column(db.Text)  # Campo para datos sensibles cifrados
     
     # Relaciones
     tasks_assigned = db.relationship('Task', foreign_keys='Task.assigned_to', backref='assignee', lazy=True, cascade="all, delete-orphan")
@@ -82,7 +83,7 @@ class SupportTicket(db.Model):
 
 
 class Document(db.Model):
-    """Modelo de Documentos para clientes."""
+    """Modelo de Documentos para clientes (Uso Seguro)."""
     __tablename__ = 'documents'
     
     id = db.Column(db.Integer, primary_key=True)
@@ -93,9 +94,9 @@ class Document(db.Model):
     project_id = db.Column(db.Integer, db.ForeignKey('projects.id'))
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
-    # Relación con usuario
-    client = db.relationship('User', backref='documents', foreign_keys=[client_id], cascade="all, delete-orphan", single_parent=True)
-
     def __repr__(self):
         return f'<Document {self.title}>'
+
+
+
 
