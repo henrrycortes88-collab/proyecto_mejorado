@@ -562,6 +562,10 @@ def internal_error(error):
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=8080, debug=False)
 
-    # Auto-inicializar tablas al arrancar
+    # Auto-inicializar tablas y datos al arrancar
 with app.app_context():
     db.create_all()
+    from models import User
+    if not User.query.first():
+        from init_db import init_db
+        init_db()
